@@ -27,8 +27,7 @@ private
 
 public
     constructor Create(const aFileName: string;
-        aLogFormat: TLogOutputFormat = LOG_FORMAT_PLAIN;
-        aCsvColumns: Boolean = False);
+        aLogFormat: TLogOutputFormat = LOG_FORMAT_PLAIN);
     destructor  Destroy; override;
 
     function    writesStructuredToStdout(): Boolean;
@@ -109,12 +108,11 @@ end;
 * Create
 *******************************************************************************}
 constructor TLogCore.Create(const aFileName: string;
-    aLogFormat: TLogOutputFormat;
-    aCsvColumns: Boolean);
+    aLogFormat: TLogOutputFormat);
 begin
     inherited Create;
     Fring := TStringRingBuffer.Create;
-    Fwriter := TJsonLogWriter.Create(aFileName, aLogFormat, aCsvColumns);
+    Fwriter := TJsonLogWriter.Create(aFileName, aLogFormat);
     InitCriticalSection(Flock);
 end;
 
@@ -303,7 +301,7 @@ end;
 {*******************************************************************************
 * tryParseLogFormat
 *   Parses a log format token into TLogOutputFormat.
-*   Supported: plain, jsonl, csv.
+*   Supported: plain, jsonl.
 *******************************************************************************}
 class function TLogCore.tryParseLogFormat(const aValue: string;
     out aLogFormat: TLogOutputFormat): Boolean;
@@ -317,15 +315,13 @@ begin
         aLogFormat := LOG_FORMAT_PLAIN
     else if valueText = 'jsonl' then
         aLogFormat := LOG_FORMAT_JSONL
-    else if valueText = 'csv' then
-        aLogFormat := LOG_FORMAT_CSV
     else
         Result := False;
 end;
 
 {*******************************************************************************
 * parseLogFormatArg
-*   Scans ParamStr for --log-format=<plain|jsonl|csv> or --log-format <plain|jsonl|csv>.
+*   Scans ParamStr for --log-format=<plain|jsonl> or --log-format <plain|jsonl>.
 *   Returns True if option is present.
 *   Raises exception for missing or invalid value.
 *******************************************************************************}
@@ -347,10 +343,10 @@ begin
         if arg = '--log-format' then
         begin
             if i + 1 > ParamCount then
-                raise Exception.Create('--log-format requires one of: plain, jsonl, csv');
+                raise Exception.Create('--log-format requires one of: plain, jsonl');
             valueText := ParamStr(i + 1);
             if not tryParseLogFormat(valueText, aLogFormat) then
-                raise Exception.Create('Invalid --log-format value: ' + valueText + ' (expected plain, jsonl or csv)');
+                raise Exception.Create('Invalid --log-format value: ' + valueText + ' (expected plain or jsonl)');
             Result := True;
             Exit;
         end;
@@ -360,9 +356,9 @@ begin
             eqPos := Pos('=', ParamStr(i));
             valueText := Trim(Copy(ParamStr(i), eqPos + 1, MaxInt));
             if valueText = '' then
-                raise Exception.Create('--log-format requires one of: plain, jsonl, csv');
+                raise Exception.Create('--log-format requires one of: plain, jsonl');
             if not tryParseLogFormat(valueText, aLogFormat) then
-                raise Exception.Create('Invalid --log-format value: ' + valueText + ' (expected plain, jsonl or csv)');
+                raise Exception.Create('Invalid --log-format value: ' + valueText + ' (expected plain or jsonl)');
             Result := True;
             Exit;
         end;

@@ -12,7 +12,6 @@ const
 
 type
     TLogOutputFormat = (LOG_FORMAT_PLAIN,
-        LOG_FORMAT_CSV,
         LOG_FORMAT_JSONL);
 
     {***************************************************************************
@@ -37,21 +36,18 @@ public
     {***************************************************************************
      * TJsonLogWriter
      *   Writes plain or structured log lines to a file or stdout.
-     *   Supports plain, JSONL and CSV output formats.
+     *   Supports plain and JSONL output formats.
      ***************************************************************************}
     TJsonLogWriter = class
 private
     FlogFile                : TextFile;
     FlogFormat              : TLogOutputFormat;
-    FcsvColumns             : Boolean;
     FuseStdout              : Boolean;
     FfileOpened             : Boolean;
-    FcsvHeaderWritten       : Boolean;
 
 public
     constructor Create(const aFileName: string;
-        aLogFormat: TLogOutputFormat = LOG_FORMAT_PLAIN;
-        aCsvColumns: Boolean = False);
+        aLogFormat: TLogOutputFormat = LOG_FORMAT_PLAIN);
     destructor  Destroy; override;
 
     procedure   writeLine(const aLine: string);
@@ -70,158 +66,6 @@ implementation
 
 var
     gDotFmt: TFormatSettings;
-
-function extractJsonStringValue(const aLine: string; const aKey: string): string;
-var
-    k: string;
-    p: SizeInt;
-    s: SizeInt;
-    e: SizeInt;
-begin
-    Result := '';
-    k := '"' + aKey + '":"';
-    p := Pos(k, aLine);
-    if p = 0 then
-        Exit;
-
-    s := p + Length(k);
-    e := s;
-    while e <= Length(aLine) do
-    begin
-        if (aLine[e] = '"') and ((e = s) or (aLine[e - 1] <> '\')) then
-            Break;
-        Inc(e);
-    end;
-    Result := Copy(aLine, s, e - s);
-end;
-
-function extractJsonRawValue(const aLine: string; const aKey: string): string;
-var
-    k: string;
-    p: SizeInt;
-    s: SizeInt;
-    e: SizeInt;
-begin
-    Result := '';
-    k := '"' + aKey + '":';
-    p := Pos(k, aLine);
-    if p = 0 then
-        Exit;
-
-    s := p + Length(k);
-    e := s;
-    while (e <= Length(aLine)) and (aLine[e] <> ',') and (aLine[e] <> '}') do
-        Inc(e);
-
-    Result := Trim(Copy(aLine, s, e - s));
-end;
-
-function extractJsonArrayItems(const aLine: string; const aKey: string): string;
-var
-    k: string;
-    p: SizeInt;
-    s: SizeInt;
-    e: SizeInt;
-    depth: Integer;
-begin
-    Result := '';
-    k := '"' + aKey + '":[';
-    p := Pos(k, aLine);
-    if p = 0 then
-        Exit;
-
-    s := p + Length(k);
-    e := s;
-    depth := 1;
-    while e <= Length(aLine) do
-    begin
-        if aLine[e] = '[' then
-            Inc(depth)
-        else if aLine[e] = ']' then
-        begin
-            Dec(depth);
-            if depth = 0 then
-                Break;
-        end;
-        Inc(e);
-    end;
-
-    Result := Trim(Copy(aLine, s, e - s));
-end;
-
-function csvEscape(const aText: string): string;
-begin
-    Result := '"' + StringReplace(aText, '"', '""', [rfReplaceAll]) + '"';
-end;
-
-function buildCsvLine(const aJsonLine: string): string;
-var
-    ep: string;
-    ev: string;
-    hr: string;
-    lv: string;
-    rr: string;
-    ts: string;
-    app: string;
-    mac: string;
-    msg: string;
-    idx: string;
-    phase: string;
-    ticks: string;
-    source: string;
-    comPort: string;
-    deltaMs: string;
-    rawRrMs: string;
-    extremum: string;
-    identifier: string;
-    deviceType: string;
-    smoothRrMs: string;
-    sampleIndex: string;
-begin
-    app := extractJsonStringValue(aJsonLine, 'app');
-    ts := extractJsonStringValue(aJsonLine, 'ts');
-    ev := extractJsonStringValue(aJsonLine, 'event');
-    hr := extractJsonRawValue(aJsonLine, 'hr');
-    rr := extractJsonArrayItems(aJsonLine, 'rr');
-    lv := extractJsonStringValue(aJsonLine, 'level');
-    ep := extractJsonRawValue(aJsonLine, 'epoch');
-    idx := extractJsonRawValue(aJsonLine, 'index');
-    mac := extractJsonStringValue(aJsonLine, 'mac');
-    msg := extractJsonStringValue(aJsonLine, 'message');
-    phase := extractJsonStringValue(aJsonLine, 'phase');
-    ticks := extractJsonRawValue(aJsonLine, 'ticks');
-    source := extractJsonStringValue(aJsonLine, 'source');
-    comPort := extractJsonStringValue(aJsonLine, 'com_port');
-    deltaMs := extractJsonRawValue(aJsonLine, 'delta_ms');
-    extremum := extractJsonStringValue(aJsonLine, 'extremum');
-    rawRrMs := extractJsonRawValue(aJsonLine, 'rr_raw_ms');
-    identifier := extractJsonStringValue(aJsonLine, 'identifier');
-    deviceType := extractJsonStringValue(aJsonLine, 'device_type');
-    sampleIndex := extractJsonRawValue(aJsonLine, 'sample_index');
-    smoothRrMs := extractJsonRawValue(aJsonLine, 'rr_smooth_ms');
-
-    Result := csvEscape(app) + ',' +
-              csvEscape(ts) + ',' +
-              ticks + ',' +
-              ep + ',' +
-              csvEscape(ev) + ',' +
-              idx + ',' +
-              csvEscape(mac) + ',' +
-              csvEscape(identifier) + ',' +
-              csvEscape(deviceType) + ',' +
-              csvEscape(comPort) + ',' +
-              hr + ',' +
-              csvEscape(rr) + ',' +
-              csvEscape(phase) + ',' +
-              rawRrMs + ',' +
-              smoothRrMs + ',' +
-              csvEscape(extremum) + ',' +
-              deltaMs + ',' +
-              sampleIndex + ',' +
-              csvEscape(source) + ',' +
-              csvEscape(lv) + ',' +
-              csvEscape(msg);
-end;
 
 { TStringRingBuffer }
 
@@ -273,13 +117,10 @@ end;
 { TJsonLogWriter }
 
 constructor TJsonLogWriter.Create(const aFileName: string;
-    aLogFormat: TLogOutputFormat;
-    aCsvColumns: Boolean);
+    aLogFormat: TLogOutputFormat);
 begin
     inherited Create;
     FlogFormat := aLogFormat;
-    FcsvColumns := aCsvColumns;
-    FcsvHeaderWritten := False;
 
     if aFileName = '-' then
     begin
@@ -309,23 +150,7 @@ begin
     if FlogFormat = LOG_FORMAT_PLAIN then
         Exit;
 
-    if (FlogFormat = LOG_FORMAT_CSV) and FcsvColumns and (not FcsvHeaderWritten) then
-    begin
-        out_ := 'app,ts,ticks,epoch,event,index,mac,identifier,device_type,com_port,hr,rr,phase,rr_raw_ms,rr_smooth_ms,extremum,delta_ms,sample_index,source,level,message' + LineEnding;
-        if FuseStdout then
-        begin
-            Write(out_);
-            Flush(Output);
-        end
-        else
-            Write(FlogFile, out_);
-        FcsvHeaderWritten := True;
-    end;
-
-    if FlogFormat = LOG_FORMAT_CSV then
-        out_ := buildCsvLine(aLine)
-    else
-        out_ := aLine;
+    out_ := aLine;
 
     if FuseStdout then
     begin
@@ -360,7 +185,7 @@ end;
 
 function TJsonLogWriter.writesStructured(): Boolean;
 begin
-    Result := FlogFormat <> LOG_FORMAT_PLAIN;
+    Result := FlogFormat = LOG_FORMAT_JSONL;
 end;
 
 procedure TJsonLogWriter.finish;
@@ -385,10 +210,10 @@ begin
     n := Now;
     ticks := GetTickCount64;
     epoch := (n - 25569) * 86400.0;
-    Result := '"app":"' + aApp + '"' +
-              ',"ts":"' + FormatDateTime('yyyy.mm.dd hh:nn:ss.zzz', n) + '"' +
-              ',"ticks":' + IntToStr(Int64(ticks)) +
-              ',"epoch":' + jsonLogFloat3(epoch);
+    Result := '"ap":"' + aApp + '"' +
+              ',"t":"' + FormatDateTime('yyyy.mm.dd hh:nn:ss.zzz', n) + '"' +
+              ',"tk":' + IntToStr(Int64(ticks)) +
+              ',"ep":' + jsonLogFloat3(epoch);
 end;
 
 initialization
