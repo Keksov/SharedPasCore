@@ -1,0 +1,9 @@
+{
+  "name": "@kkw/shared-ts",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./log-chart": "./log-chart.ts",
+    "./protocol": "./protocol.ts"
+  }
+}
