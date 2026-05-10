@@ -54,13 +54,51 @@ export interface BodyMonitorServerListDevicesRequest {
   readonly type: "bodymonitor_server_list_devices"
 }
 
+export interface BodyMonitorServerPingDeviceRequest {
+  readonly type: "bodymonitor_server_ping_device"
+  readonly mac: string
+}
+
+export interface BodyMonitorServerDiagnoseEegRequest {
+  readonly type: "bodymonitor_server_diagnose_eeg"
+  readonly mac: string
+}
+
+export interface BodyMonitorAlphaRelaxationStartRequest {
+  readonly type: "bodymonitor_request_alpha_relaxation_start"
+  readonly durationMin: number
+}
+
+export interface BodyMonitorAlphaRelaxationStopRequest {
+  readonly type: "bodymonitor_request_alpha_relaxation_stop"
+}
+
+export interface BodyMonitorSleepDrowseStartRequest {
+  readonly type: "bodymonitor_request_sleep_drowse_start"
+  readonly durationMin: number
+}
+
+export interface BodyMonitorSleepDrowseStopRequest {
+  readonly type: "bodymonitor_request_sleep_drowse_stop"
+}
+
 export interface ReplayStartRequest {
   readonly type: "replay_start"
   readonly sessionId: number
+  readonly timestampMs?: number
 }
 
 export interface ReplayStopRequest {
   readonly type: "replay_stop"
+}
+
+export interface ReplayPauseRequest {
+  readonly type: "replay_pause"
+}
+
+export interface ReplaySeekRequest {
+  readonly type: "replay_seek"
+  readonly timestampMs: number
 }
 
 export interface ReplaySetSpeedRequest {
@@ -70,8 +108,16 @@ export interface ReplaySetSpeedRequest {
 
 export type BodyMonitorBrowserMessage =
   | BodyMonitorServerListDevicesRequest
+  | BodyMonitorServerPingDeviceRequest
+  | BodyMonitorServerDiagnoseEegRequest
+  | BodyMonitorAlphaRelaxationStartRequest
+  | BodyMonitorAlphaRelaxationStopRequest
+  | BodyMonitorSleepDrowseStartRequest
+  | BodyMonitorSleepDrowseStopRequest
   | ReplayStartRequest
   | ReplayStopRequest
+  | ReplayPauseRequest
+  | ReplaySeekRequest
   | ReplaySetSpeedRequest
   | BodyMonitorStdioConfigureRequest
   | BodyMonitorStdioStartRequest
@@ -117,6 +163,24 @@ export interface AudioSetVolumeRequest {
   readonly right: number
 }
 
+export interface AudioAlphaRelaxationStartRequest {
+  readonly type: "audio_alpha_relaxation_start"
+  readonly durationMin: number
+}
+
+export interface AudioAlphaRelaxationStopRequest {
+  readonly type: "audio_alpha_relaxation_stop"
+}
+
+export interface AudioSleepDrowseStartRequest {
+  readonly type: "audio_sleep_drowse_start"
+  readonly durationMin: number
+}
+
+export interface AudioSleepDrowseStopRequest {
+  readonly type: "audio_sleep_drowse_stop"
+}
+
 export type AudioBrowserMessage =
   | AudioStartRequest
   | AudioStopRequest
@@ -124,6 +188,10 @@ export type AudioBrowserMessage =
   | AudioResumeRequest
   | AudioSeekRequest
   | AudioSetVolumeRequest
+  | AudioAlphaRelaxationStartRequest
+  | AudioAlphaRelaxationStopRequest
+  | AudioSleepDrowseStartRequest
+  | AudioSleepDrowseStopRequest
 
 export type BrowserMessage = BodyMonitorBrowserMessage | AudioBrowserMessage
 
@@ -243,6 +311,8 @@ export interface ArchivedLogSummary {
   readonly eventCount: number
   readonly exitCode?: number
   readonly deviceSummary: readonly LogDeviceSummary[]
+  readonly audioSchedule?: GnauralScheduleData
+  readonly audioScheduleStartedAtMs?: number
   readonly tags: readonly string[]
 }
 
@@ -500,10 +570,64 @@ export interface BodyMonitorDevicesEvent {
   readonly devices: readonly DeviceInfo[]
 }
 
+export interface BodyMonitorPingResultEvent {
+  readonly type: "bodymonitor_ping_result"
+  readonly mac: string
+  readonly ok: boolean
+  readonly identifier?: string
+  readonly message?: string
+  readonly elapsedMs?: number
+}
+
+export type BodyMonitorScanDeviceStage =
+  | "queued"
+  | "probing"
+  | "complete"
+  | "failed"
+  | "not_connectable"
+  | "cancelled"
+
+export interface BodyMonitorScanDeviceStatusEvent {
+  readonly type: "bodymonitor_scan_device_status"
+  readonly runId: string
+  readonly mac: string
+  readonly stage: BodyMonitorScanDeviceStage
+  readonly index: number
+  readonly totalCount: number
+  readonly completedCount: number
+  readonly message?: string
+}
+
 export interface BodyMonitorErrorEvent {
   readonly type: "bodymonitor_error"
   readonly message: string
   readonly runId?: string
+}
+
+export interface EegDiagnosticsBleInfo {
+  readonly ok: boolean
+  readonly identifier?: string
+  readonly elapsedMs?: number
+  readonly message?: string
+}
+
+export interface EegDiagnosticsComInfo {
+  readonly found: boolean
+  readonly port?: string
+  readonly description?: string
+  readonly pnpDeviceId?: string
+}
+
+export interface BodyMonitorEegDiagnosticsEvent {
+  readonly type: "bodymonitor_eeg_diagnostics"
+  readonly mac: string
+  readonly updatedAtMs: number
+  readonly ble?: EegDiagnosticsBleInfo
+  readonly com?: EegDiagnosticsComInfo
+  readonly overallKey: "ok" | "ble_missing" | "com_missing" | "checking" | "error"
+  readonly message?: string
+  readonly errorCode?: number
+  readonly errorStage?: string
 }
 
 export interface BodyMonitorExitEvent {
@@ -615,6 +739,7 @@ export interface AudioScheduleLoadedEvent {
   readonly type: "audio_schedule_loaded"
   readonly filePath: string
   readonly schedule: GnauralScheduleData
+  readonly loadedAtMs?: number
 }
 
 export interface ReplayStartedEvent {
@@ -624,6 +749,9 @@ export interface ReplayStartedEvent {
   readonly kind: LogSessionKind
   readonly devices: readonly LogDeviceSummary[]
   readonly speed: ReplaySpeed
+  readonly startedAtMs?: number
+  readonly audioSchedule?: GnauralScheduleData
+  readonly audioScheduleStartedAtMs?: number
   readonly cursorTimestampMs?: number
 }
 
@@ -639,6 +767,12 @@ export interface ReplayStoppedEvent {
   readonly sessionId: number
 }
 
+export interface ReplayPausedEvent {
+  readonly type: "replay_paused"
+  readonly sessionId: number
+  readonly cursorTimestampMs?: number
+}
+
 export interface ReplayFinishedEvent {
   readonly type: "replay_finished"
   readonly sessionId: number
@@ -651,6 +785,9 @@ export type BodyMonitorServerEvent =
   | BodyMonitorOutputEvent
   | BodyMonitorDeviceEvent
   | BodyMonitorDevicesEvent
+  | BodyMonitorPingResultEvent
+  | BodyMonitorScanDeviceStatusEvent
+  | BodyMonitorEegDiagnosticsEvent
   | BodyMonitorErrorEvent
   | BodyMonitorExitEvent
   | BodyMonitorStdioAckEvent
@@ -659,6 +796,7 @@ export type BodyMonitorServerEvent =
   | ReplayStartedEvent
   | ReplayProgressEvent
   | ReplayStoppedEvent
+  | ReplayPausedEvent
   | ReplayFinishedEvent
 
 export type AudioServerEvent =
@@ -733,6 +871,30 @@ export const isBrowserMessage = (value: unknown): value is BrowserMessage => {
     return isUnitInterval(value.left) && isUnitInterval(value.right)
   }
 
+  if (value.type === "audio_alpha_relaxation_start") {
+    return typeof value.durationMin === "number" && Number.isInteger(value.durationMin) && value.durationMin > 0
+  }
+
+  if (value.type === "audio_alpha_relaxation_stop") {
+    return true
+  }
+
+  if (value.type === "audio_sleep_drowse_start") {
+    return typeof value.durationMin === "number" && Number.isInteger(value.durationMin) && value.durationMin > 0
+  }
+
+  if (value.type === "audio_sleep_drowse_stop") {
+    return true
+  }
+
+  if (value.type === "replay_pause") {
+    return true
+  }
+
+  if (value.type === "replay_seek") {
+    return isNumber(value.timestampMs)
+  }
+
   if (value.type === "bodymonitor_stdio_configure") {
     return isStringArray(value.params)
   }
@@ -757,8 +919,35 @@ export const isBrowserMessage = (value: unknown): value is BrowserMessage => {
     return true
   }
 
+  if (value.type === "bodymonitor_server_ping_device") {
+    return typeof value.mac === "string" && value.mac.trim() !== ""
+  }
+
+  if (value.type === "bodymonitor_server_diagnose_eeg") {
+    return typeof value.mac === "string" && value.mac.trim() !== ""
+  }
+
+  if (value.type === "bodymonitor_request_alpha_relaxation_start") {
+    return typeof value.durationMin === "number" && Number.isInteger(value.durationMin) && value.durationMin > 0
+  }
+
+  if (value.type === "bodymonitor_request_alpha_relaxation_stop") {
+    return true
+  }
+
+  if (value.type === "bodymonitor_request_sleep_drowse_start") {
+    return typeof value.durationMin === "number" && Number.isInteger(value.durationMin) && value.durationMin > 0
+  }
+
+  if (value.type === "bodymonitor_request_sleep_drowse_stop") {
+    return true
+  }
+
   if (value.type === "replay_start") {
-    return typeof value.sessionId === "number" && Number.isInteger(value.sessionId) && value.sessionId > 0
+    return typeof value.sessionId === "number"
+      && Number.isInteger(value.sessionId)
+      && value.sessionId > 0
+      && (value.timestampMs === undefined || isNumber(value.timestampMs))
   }
 
   if (value.type === "replay_stop") {
@@ -778,6 +967,11 @@ export const parseJsonLine = (line: string): unknown | null => {
   } catch {
     return null
   }
+}
+
+const normalizeMacAddress = (value: string): string | null => {
+  const normalized = value.trim().toLowerCase()
+  return normalized === "" ? null : normalized
 }
 
 export const parseDeviceInfoFromJson = (value: unknown): DeviceInfo | null => {
@@ -801,10 +995,14 @@ export const parseDeviceInfoFromJson = (value: unknown): DeviceInfo | null => {
   const comPort = typeof value.com_port === "string" && value.com_port !== ""
     ? value.com_port
     : undefined
+  const mac = normalizeMacAddress(value.mac)
+  if (mac === null) {
+    return null
+  }
 
   return {
     index: value.index,
-    mac: value.mac,
+    mac,
     name: value.identifier,
     type: value.device_type,
     ...(comPort !== undefined ? { comPort } : {}),
@@ -814,6 +1012,76 @@ export const parseDeviceInfoFromJson = (value: unknown): DeviceInfo | null => {
 
 export const parseDeviceInfo = (line: string): DeviceInfo | null => {
   return parseDeviceInfoFromJson(parseJsonLine(line))
+}
+
+export const parseBlePingResultFromJson = (value: unknown): BodyMonitorPingResultEvent | null => {
+  if (!isRecord(value)) {
+    return null
+  }
+
+  if (value.event !== "ble_ping" || typeof value.ok !== "boolean" || typeof value.mac !== "string") {
+    return null
+  }
+
+  const mac = normalizeMacAddress(value.mac)
+  if (mac === null) {
+    return null
+  }
+
+  return {
+    type: "bodymonitor_ping_result",
+    mac,
+    ok: value.ok,
+    identifier: typeof value.identifier === "string" ? value.identifier : undefined,
+    message: typeof value.message === "string" ? value.message : undefined,
+    elapsedMs: isNonNegativeNumber(value.elapsed_ms) ? value.elapsed_ms : undefined,
+  }
+}
+
+const scanDeviceStages = new Set<BodyMonitorScanDeviceStage>([
+  "queued",
+  "probing",
+  "complete",
+  "failed",
+  "not_connectable",
+  "cancelled",
+])
+
+export const parseBleScanDeviceStatusFromJson = (value: unknown): Omit<BodyMonitorScanDeviceStatusEvent, "runId"> | null => {
+  if (!isRecord(value)) {
+    return null
+  }
+
+  if (
+    value.event !== "ble_scan_device" ||
+    typeof value.mac !== "string" ||
+    typeof value.stage !== "string" ||
+    !isNumber(value.index) ||
+    !isNumber(value.total) ||
+    !isNumber(value.completed)
+  ) {
+    return null
+  }
+
+  const stage = value.stage as BodyMonitorScanDeviceStage
+  if (!scanDeviceStages.has(stage)) {
+    return null
+  }
+
+  const mac = normalizeMacAddress(value.mac)
+  if (mac === null) {
+    return null
+  }
+
+  return {
+    type: "bodymonitor_scan_device_status",
+    mac,
+    stage,
+    index: Math.trunc(value.index),
+    totalCount: Math.max(0, Math.trunc(value.total)),
+    completedCount: Math.max(0, Math.trunc(value.completed)),
+    message: typeof value.message === "string" ? value.message : undefined,
+  }
 }
 
 export const getRuntimeEventTimestampMs = (value: unknown): number | null => {
@@ -911,6 +1179,36 @@ export const parseSnapshotEvent = (value: unknown): RuntimeSnapshotEvent | null 
   return hasMetric ? snapshot : null
 }
 
+export interface RuntimeAlgoBandPowerEvent {
+  readonly event: "algo_band_power"
+  readonly epoch?: number
+  readonly delta?: number
+  readonly theta?: number
+  readonly alpha?: number
+  readonly beta?: number
+  readonly gamma?: number
+}
+
+export const parseAlgoBandPowerEvent = (value: unknown): RuntimeAlgoBandPowerEvent | null => {
+  if (!isRecord(value) || value.e !== "ap") {
+    return null
+  }
+
+  const event: RuntimeAlgoBandPowerEvent = {
+    event: "algo_band_power",
+    epoch: isNumber(value.ep) ? value.ep : undefined,
+    delta: isNumber(value.d) ? value.d : undefined,
+    theta: isNumber(value.th) ? value.th : undefined,
+    alpha: isNumber(value.a) ? value.a : undefined,
+    beta: isNumber(value.b) ? value.b : undefined,
+    gamma: isNumber(value.g) ? value.g : undefined,
+  }
+
+  const hasMetric = event.delta !== undefined || event.theta !== undefined ||
+    event.alpha !== undefined || event.beta !== undefined || event.gamma !== undefined
+  return hasMetric ? event : null
+}
+
 export const parseStdioAck = (value: unknown): BodyMonitorStdioAckEvent | null => {
   if (!isRecord(value)) {
     return null
@@ -938,4 +1236,59 @@ export const isServerReadyLine = (value: unknown): boolean => {
 
 export const toJson = (event: ServerEvent): string => {
   return JSON.stringify(event)
+}
+
+const EEG_DIAGNOSTICS_OVERALL_KEYS = new Set<BodyMonitorEegDiagnosticsEvent["overallKey"]>([
+  "ok", "ble_missing", "com_missing", "checking", "error",
+])
+
+export const parseEegDiagnosticsFromJson = (value: unknown): BodyMonitorEegDiagnosticsEvent | null => {
+  if (!isRecord(value)) {
+    return null
+  }
+
+  if (value.event !== "eeg_diagnostics" || typeof value.mac !== "string") {
+    return null
+  }
+
+  const mac = normalizeMacAddress(value.mac)
+  if (mac === null) {
+    return null
+  }
+
+  const overallKey = typeof value.overall_key === "string" && EEG_DIAGNOSTICS_OVERALL_KEYS.has(
+    value.overall_key as BodyMonitorEegDiagnosticsEvent["overallKey"]
+  )
+    ? (value.overall_key as BodyMonitorEegDiagnosticsEvent["overallKey"])
+    : "error"
+
+  const ble: EegDiagnosticsBleInfo | undefined = isRecord(value.ble)
+    ? {
+        ok: typeof value.ble.ok === "boolean" ? value.ble.ok : false,
+        identifier: typeof value.ble.identifier === "string" ? value.ble.identifier : undefined,
+        elapsedMs: isNonNegativeNumber(value.ble.elapsed_ms) ? value.ble.elapsed_ms : undefined,
+        message: typeof value.ble.message === "string" ? value.ble.message : undefined,
+      }
+    : undefined
+
+  const com: EegDiagnosticsComInfo | undefined = isRecord(value.com)
+    ? {
+        found: typeof value.com.found === "boolean" ? value.com.found : false,
+        port: typeof value.com.port === "string" ? value.com.port : undefined,
+        description: typeof value.com.description === "string" ? value.com.description : undefined,
+        pnpDeviceId: typeof value.com.pnp_device_id === "string" ? value.com.pnp_device_id : undefined,
+      }
+    : undefined
+
+  return {
+    type: "bodymonitor_eeg_diagnostics",
+    mac,
+    updatedAtMs: isNonNegativeNumber(value.updated_at_ms) ? value.updated_at_ms : Date.now(),
+    ...(ble !== undefined ? { ble } : {}),
+    ...(com !== undefined ? { com } : {}),
+    overallKey,
+    message: typeof value.message === "string" ? value.message : undefined,
+    errorCode: typeof value.error_code === "number" ? value.error_code : undefined,
+    errorStage: typeof value.error_stage === "string" ? value.error_stage : undefined,
+  }
 }

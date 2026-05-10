@@ -4,6 +4,7 @@ import {
   LOG_CHART_SERIES_ORDER,
   createEmptyLogChartDataSnapshot,
   getRuntimeEventTimestampMs,
+  parseAlgoBandPowerEvent,
   parseBreathPhaseEvent,
   parseHrNotificationEvent,
   parseSnapshotEvent,
@@ -125,6 +126,28 @@ export const appendParsedOutputToLogChart = (
       }
 
       updates.push({ key, point: [timestampMs, value] })
+    }
+  }
+
+  const algoBandEvent = parseAlgoBandPowerEvent(parsedJson)
+  if (algoBandEvent !== null) {
+    if (algoBandEvent.delta !== undefined) {
+      updates.push({ key: 'delta', point: [timestampMs, algoBandEvent.delta] })
+    }
+    if (algoBandEvent.theta !== undefined) {
+      updates.push({ key: 'theta', point: [timestampMs, algoBandEvent.theta] })
+    }
+    if (algoBandEvent.alpha !== undefined) {
+      updates.push({ key: 'alpha1', point: [timestampMs, algoBandEvent.alpha] })
+      updates.push({ key: 'alpha2', point: [timestampMs, algoBandEvent.alpha] })
+    }
+    if (algoBandEvent.beta !== undefined) {
+      updates.push({ key: 'beta1', point: [timestampMs, algoBandEvent.beta] })
+      updates.push({ key: 'beta2', point: [timestampMs, algoBandEvent.beta] })
+    }
+    if (algoBandEvent.gamma !== undefined) {
+      updates.push({ key: 'gamma1', point: [timestampMs, algoBandEvent.gamma] })
+      updates.push({ key: 'gamma2', point: [timestampMs, algoBandEvent.gamma] })
     }
   }
 

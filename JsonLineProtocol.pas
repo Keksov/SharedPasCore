@@ -4,6 +4,9 @@ unit JsonLineProtocol;
 
 interface
 
+uses
+    SysUtils;
+
 {*******************************************************************************
 * readStdinLine
 *   Reads one UTF-8 line from stdin. Returns True on success, False on EOF
@@ -19,6 +22,9 @@ function readStdinLine(out aLine: string): Boolean;
 procedure writeStdoutLine(const aLine: string);
 
 implementation
+
+var
+    gStdoutLock: TRTLCriticalSection;
 
 {*******************************************************************************
 * readStdinLine
@@ -40,8 +46,19 @@ end;
 *******************************************************************************}
 procedure writeStdoutLine(const aLine: string);
 begin
-    WriteLn(aLine);
-    Flush(Output);
+    EnterCriticalSection(gStdoutLock);
+    try
+        WriteLn(aLine);
+        Flush(Output);
+    finally
+        LeaveCriticalSection(gStdoutLock);
+    end;
 end;
+
+initialization
+    InitCriticalSection(gStdoutLock);
+
+finalization
+    DoneCriticalSection(gStdoutLock);
 
 end.

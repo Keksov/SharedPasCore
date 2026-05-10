@@ -5,7 +5,8 @@ unit JsonLogWriter;
 interface
 
 uses
-    SysUtils;
+    SysUtils,
+    JsonLineProtocol;
 
 const
     RING_SIZE               = 256;
@@ -153,10 +154,7 @@ begin
     out_ := aLine;
 
     if FuseStdout then
-    begin
-        WriteLn(out_);
-        Flush(Output);
-    end
+        writeStdoutLine(out_)
     else
     begin
         WriteLn(FlogFile, out_);
@@ -171,10 +169,7 @@ begin
         Exit;
 
     if FuseStdout then
-    begin
-        WriteLn(aLine);
-        Flush(Output);
-    end
+        writeStdoutLine(aLine)
     else
     begin
         WriteLn(FlogFile, aLine);
