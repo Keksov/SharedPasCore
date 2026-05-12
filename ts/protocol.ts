@@ -358,11 +358,20 @@ export const EEG_SNAPSHOT_SERIES_KEYS = [
   "gamma2",
 ] as const
 
+export const ALGO_BP_SERIES_KEYS = [
+  "bpDelta",
+  "bpTheta",
+  "bpAlpha",
+  "bpBeta",
+  "bpGamma",
+] as const
+
 export const LOG_CHART_SERIES_ORDER = [
   "hr",
   "rr",
   "breath_phase",
   ...EEG_SNAPSHOT_SERIES_KEYS,
+  ...ALGO_BP_SERIES_KEYS,
 ] as const
 
 export type EegSnapshotSeriesKey = (typeof EEG_SNAPSHOT_SERIES_KEYS)[number]
@@ -472,6 +481,36 @@ export const LOG_CHART_SERIES_META: Record<LogChartSeriesKey, LogChartSeriesMeta
   },
   gamma2: {
     panel: "eeg",
+    renderMode: "line",
+    defaultVisible: false,
+  },
+  bpDelta: {
+    panel: "eeg",
+    unit: "dB",
+    renderMode: "line",
+    defaultVisible: false,
+  },
+  bpTheta: {
+    panel: "eeg",
+    unit: "dB",
+    renderMode: "line",
+    defaultVisible: false,
+  },
+  bpAlpha: {
+    panel: "eeg",
+    unit: "dB",
+    renderMode: "line",
+    defaultVisible: false,
+  },
+  bpBeta: {
+    panel: "eeg",
+    unit: "dB",
+    renderMode: "line",
+    defaultVisible: false,
+  },
+  bpGamma: {
+    panel: "eeg",
+    unit: "dB",
     renderMode: "line",
     defaultVisible: false,
   },
